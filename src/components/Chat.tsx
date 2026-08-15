@@ -291,7 +291,7 @@ export function Chat({ onEditSettings }: ChatProps) {
       </header>
 
       <AssistantRuntimeProvider runtime={runtime}>
-        <ThreadPrimitive.Root>
+        <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
           <ThreadPrimitive.Viewport className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
             {items.length === 0 && (
               <div className="flex h-full items-center justify-center text-sm text-slate-600">
