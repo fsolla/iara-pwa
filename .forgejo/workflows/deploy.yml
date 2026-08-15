@@ -1,0 +1,21 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: host
+    steps:
+      - name: Build e deploy
+        run: |
+          set -e
+          rm -rf /tmp/iara-build
+          git clone -q --depth 1 -b main https://git.solla.dev/amana/iara-pwa.git /tmp/iara-build
+          cd /tmp/iara-build
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun install --frozen-lockfile
+          bun run build
+          rsync -az --delete dist/ homeserver:~/iara-pwa/dist/
+          echo "deploy concluido em $(date -u +%H:%M:%SZ)"
