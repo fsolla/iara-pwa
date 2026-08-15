@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  base: "/_app/",
   plugins: [
     react(),
     tailwindcss(),
@@ -27,7 +28,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,woff2}"],
-        navigateFallback: "/index.html",
+        navigateFallback: "/_app/",
         runtimeCaching: [
           {
             urlPattern: /\/ws\/chat/,
