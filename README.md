@@ -55,3 +55,7 @@ Vite · React · TypeScript · assistant-ui (runtime + primitives) · Tailwind C
 ## Licença
 
 AGPL-3.0 — código aberto, copyleft. Veja [LICENSE](LICENSE).
+
+## Histórico
+
+- v0.1.1 — deploy automático via Forgejo Actions (runner workstation).
