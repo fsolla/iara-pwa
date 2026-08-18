@@ -44,6 +44,11 @@ jobs:
           export PATH="$HOME/.bun/bin:$PATH"
           bun run build
 
+      - name: Testes unitários (bun test)
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun run test:unit
+
       - name: Instalar navegador do Playwright
         run: |
           export PATH="$HOME/.bun/bin:$PATH"
