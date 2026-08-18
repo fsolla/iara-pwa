@@ -7,7 +7,20 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gate": "bun run lint && bun run build",
+    "test:e2e": "playwright test",
+    "worktree": "node scripts/worktree.mjs",
+    "issue": "node scripts/issue.mjs",
+    "pr": "node scripts/pr.mjs",
+    "agent:claim": "node scripts/agent-claim.mjs",
+    "agent:register": "node scripts/agent-register.mjs",
+    "agent:ready": "node scripts/agent-ready.mjs",
+    "agent:file-miss": "node scripts/agent-file-miss.mjs",
+    "agent:status": "node scripts/agent-status.mjs",
+    "agent:promote-related": "node scripts/agent-promote-related-on-merge.mjs",
+    "pr:automerge": "node scripts/forgejo-pr-automerge.mjs",
+    "issue:transition": "node scripts/forgejo-issue-transition.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.14",
@@ -20,6 +33,7 @@
     "vite-plugin-pwa": "^1.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

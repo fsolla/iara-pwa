@@ -1,0 +1,71 @@
+name: CI
+
+# PR gate + post-merge verifier + deploy:
+#   - PRs (feature → main) rodam `checks` (lint + build + e2e) — o branch
+#     protection em `main` exige o status `checks` para merge.
+#   - Push em `main` (merge dos PRs) roda `checks` de novo e depois `deploy`
+#     (rsync do dist/ para o homeserver). Deploy é gated em `checks`.
+#
+# Runner: host (workstation). Sem Postgres/serviços — Iara é um SPA.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    name: checks
+    runs-on: host
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Instalar bun
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun --version
+
+      - name: Instalar dependências
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun install --frozen-lockfile
+
+      - name: Lint
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun run lint
+
+      - name: Build (tsc + vite)
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun run build
+
+      - name: Instalar navegador do Playwright
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bunx playwright install chromium
+
+      - name: E2E (Playwright — só aqui, nunca local)
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun run test:e2e
+
+  deploy:
+    runs-on: host
+    needs: checks
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 20
+    steps:
+      - name: Build e deploy
+        run: |
+          set -e
+          export PATH="$HOME/.bun/bin:$PATH"
+          rm -rf /tmp/iara-build
+          git clone -q --depth 1 -b main https://git.solla.dev/amana/iara-pwa.git /tmp/iara-build
+          cd /tmp/iara-build
+          bun install --frozen-lockfile
+          bun run build
+          rsync -az --delete dist/ homeserver:~/iara-pwa/dist/
+          echo "deploy concluido em $(date -u +%H:%M:%SZ)"

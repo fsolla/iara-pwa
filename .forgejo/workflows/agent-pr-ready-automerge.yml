@@ -1,0 +1,21 @@
+# Safety net: PRs de entrega (feature → main) devem ser Ready + auto-merge.
+# Cobre o caso de um agente esquecer de armar o merge. Roda
+# scripts/forgejo-pr-automerge.mjs (plain Node): marca draft → ready, espera o
+# status check `checks` (branch protection em main) e mergea por rebase.
+
+name: Agent PR Ready + auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+    branches: [main]
+
+jobs:
+  ready-automerge:
+    if: github.event.pull_request.state == 'open'
+    runs-on: host
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: Mark Ready and merge when checks pass
+        run: node scripts/forgejo-pr-automerge.mjs --pr "${{ github.event.pull_request.number }}"

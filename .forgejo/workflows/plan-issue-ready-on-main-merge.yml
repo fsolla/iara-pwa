@@ -1,0 +1,26 @@
+# Safety net: PRs mergeados em main com `Related #N` promovem Issues que ainda
+# aguardam o plano de intenção (`blocked` + docs/plans/ link) para `ready`.
+# Idempotente com `bun run agent:ready` (caminho feliz do agente).
+
+name: Promote plan-issue Related on main merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  plan-issue-ready:
+    if: >-
+      github.event.pull_request.merged == true &&
+      (
+        contains(github.event.pull_request.body, 'Related #') ||
+        contains(github.event.pull_request.body, 'related #') ||
+        contains(github.event.pull_request.body, 'RELATED #')
+      )
+    runs-on: host
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Promote Related #N awaiting plan → ready
+        run: node scripts/agent-promote-related-on-merge.mjs --pr "${{ github.event.pull_request.number }}"

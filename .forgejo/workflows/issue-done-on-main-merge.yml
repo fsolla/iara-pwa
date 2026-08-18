@@ -1,0 +1,17 @@
+# Main merge flips claimed issues to done + in-prod.
+# Script plain-Node (stdlib) — no bun/install needed.
+
+name: Main merge flips claimed issues to done + in-prod
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  issue-done:
+    if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true
+    runs-on: host
+    steps:
+      - uses: actions/checkout@v5
+      - name: Flip Closes/Fixes #N issues to done and in-prod
+        run: node scripts/forgejo-issue-transition.mjs --pr "${{ github.event.pull_request.number }}"
