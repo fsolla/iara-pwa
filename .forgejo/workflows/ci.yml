@@ -1,8 +1,10 @@
 name: CI
 
 # PR gate + post-merge verifier + deploy:
-#   - PRs (feature → main) rodam `checks` (lint + build + e2e) — o branch
-#     protection em `main` exige o status `checks` para merge.
+#   - PRs (feature → main) rodam `checks` (lint + build + e2e). O merge é
+#     gated pelo script de auto-merge (`pr.mjs --automerge` /
+#     `forgejo-pr-automerge.mjs`), que espera `checks` green — sem branch
+#     protection server-side (espelha o teqo).
 #   - Push em `main` (merge dos PRs) roda `checks` de novo e depois `deploy`
 #     (rsync do dist/ para o homeserver). Deploy é gated em `checks`.
 #

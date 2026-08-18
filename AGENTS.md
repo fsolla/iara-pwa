@@ -75,6 +75,11 @@ Ciclo completo (detalhes nas skills `plan-issue` / `work-issue`):
 - `plan-issue-ready-on-main-merge.yml` — PRs com `Related #N` promovem `blocked` → `ready` (`scripts/agent-promote-related-on-merge.mjs`).
 - `agent-pr-ready-automerge.yml` — marca Ready e mergea quando `checks` ficar green (safety net do auto-merge).
 
+**Sem branch protection server-side em `main`** (espelha o teqo): o gate de merge é o
+próprio script de auto-merge (`pr.mjs --automerge` / `forgejo-pr-automerge.mjs`),
+que espera os status checks ficarem green antes de mergear; o deploy é gated pelo
+`needs: checks` do `ci.yml`.
+
 **e2e só no CI** — nunca rode `bun run test:e2e` local como parte do fluxo normal.
 
 ## Regras de entrega
