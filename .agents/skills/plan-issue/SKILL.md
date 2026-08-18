@@ -42,7 +42,7 @@ rascunho local (Issue: —)
 
 Aqui **não** se implementa código de produto, **não** se escreve plano de implementação.
 
-**Shaping (não tour):** aplique [shaping.md](shaping.md) em silêncio — appetite, fatia mínima útil, rabbit holes de produto, self-score ≥4 antes de gravar.
+**Shaping (não tour):** aplique [shaping.md](shaping.md) + [skills-map.md](skills-map.md) em silêncio — appetite, fatia mínima útil, rabbit holes de produto, self-score ≥4 antes de gravar. O skills-map é o repertório de engenharia absorvível no plano de intenção; o que ele aponta para fora fica para o `work-issue`.
 
 ## Checklist
 
