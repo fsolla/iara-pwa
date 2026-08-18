@@ -271,22 +271,32 @@ export const createApi = ({ base, token, repository, fetchImpl } = {}) => {
         body: { ...payload, branch_name: branch },
       }),
 
-    /** All required statuses on the PR head are success (or a failure exists). */
-    waitForChecks: async (number, { timeoutMs = 30 * 60 * 1000, pollMs = 15000, log } = {}) => {
+    /**
+     * All required statuses on the PR head are success (or a failure exists).
+     * `ignoreContexts` excludes a job's OWN status — a workflow that merges a
+     * PR sees itself as `pending` on the head sha and would deadlock waiting
+     * for itself. `requiredContext` (default `checks`) must be success.
+     */
+    waitForChecks: async (
+      number,
+      { timeoutMs = 30 * 60 * 1000, pollMs = 15000, log, ignoreContexts = [], requiredContext = 'checks' } = {},
+    ) => {
       const started = Date.now()
       for (;;) {
         const pr = await api.getPullRequest(number)
         if (!pr || pr.state !== 'OPEN' || pr.merged) return pr
         const statuses = await api.listCommitStatuses(pr.head.sha)
-        const failed = statuses.filter(
+        const relevant = statuses.filter((entry) => !ignoreContexts.some((c) => entry.context.includes(c)))
+        const failed = relevant.filter(
           (entry) => entry.state === 'failure' || entry.state === 'error',
         )
-        const pending = statuses.filter((entry) => entry.state === 'pending')
+        const pending = relevant.filter((entry) => entry.state === 'pending')
         if (failed.length > 0) {
           const names = failed.map((entry) => entry.context).join(', ')
           throw new Error(`Checks falharam no PR #${number}: ${names}`)
         }
-        if (statuses.length > 0 && pending.length === 0) return pr
+        const required = relevant.find((entry) => entry.context === requiredContext)
+        if (required && required.state === 'success' && pending.length === 0) return pr
         if (Date.now() - started > timeoutMs) {
           throw new Error(`Timeout esperando checks do PR #${number}.`)
         }

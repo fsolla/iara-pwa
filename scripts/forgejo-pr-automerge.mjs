@@ -46,6 +46,10 @@ try {
     console.log(`[forgejo-pr-automerge] PR #${prNumber} já Ready`)
   }
   const merged = await api.autoMerge(prNumber, {
+    // The workflow job that runs this script reports its own status on the
+    // PR head sha — ignoring it avoids the self-wait deadlock. The required
+    // `checks` context is enforced by waitForChecks.
+    ignoreContexts: ['ready-automerge'],
     log: (line) => console.log(`[forgejo-pr-automerge] ${line}`),
   })
   console.log(
