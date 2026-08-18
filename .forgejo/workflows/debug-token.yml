@@ -1,0 +1,24 @@
+name: Debug token
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [OPS1-setup-workflow-teqo]
+
+jobs:
+  debug:
+    runs-on: host
+    timeout-minutes: 5
+    steps:
+      - name: Quem é o GITHUB_TOKEN
+        run: |
+          echo "GITHUB_TOKEN user:"
+          curl -s -H "Authorization: token $GITHUB_TOKEN" https://git.solla.dev/api/v1/user
+          echo
+          echo "Permissões no repo:"
+          curl -s -H "Authorization: token $GITHUB_TOKEN" "https://git.solla.dev/api/v1/repos/amana/iara-pwa"
+          echo
+          echo "Tentando criar label (escrita):"
+          curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Content-Type: application/json" "https://git.solla.dev/api/v1/repos/amana/iara-pwa/labels" -d '{"name":"debug-token-test","color":"ff0000"}'
+          echo "Tentando remover label:"
+          curl -s -o /dev/null -w "%{http_code}\n" -X DELETE -H "Authorization: token $GITHUB_TOKEN" "https://git.solla.dev/api/v1/repos/amana/iara-pwa/labels/debug-token-test"
