@@ -13,8 +13,6 @@ usuário.
 - `bun run gate` — gate local: `lint` (oxlint) + `build` (typecheck + build). Rode antes de push.
 - `bun run test:e2e` — **e2e Playwright; roda SÓ no CI, nunca local** (decisão do fluxo: não rodar e2e local para não divergir do CI).
 
-**Pack de skills de engenharia:** em `.agents/skills/` (além das 5 de fluxo custom), com proveniência/hashes em `skills-lock.json` na raiz — fonte de verdade; upgrade deliberado via `npx skills update`.
-
 ## Arquitetura do código
 
 - `src/lib/ws.ts` — protocolo WebSocket `zeroclaw.v1` (tipos de mensagens, conecta em `<gateway>/ws/chat?token=&agent=&name=`). **Contrato**: mudar tipos de protocolo é breaking.
@@ -31,6 +29,8 @@ nunca logado/commitado; aprovações nunca auto-aprovadas; copy pt-BR /
 identificadores em inglês; assets offline em `globPatterns` do PWA.
 
 ## Workflow de trabalho (fluxo tipo teqo)
+
+**Pack de skills de engenharia:** em `.agents/skills/` (além das 5 de fluxo custom), com proveniência/hashes em `skills-lock.json` na raiz — fonte de verdade; upgrade deliberado via `npx skills update -y`.
 
 Issues do Forgejo (`git.solla.dev/amana/iara-pwa`) são a fonte canônica de
 spec/status/deps/prio. Estado em labels: `ready | in-progress | blocked | done`
