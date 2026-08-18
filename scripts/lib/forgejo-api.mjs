@@ -295,7 +295,7 @@ export const createApi = ({ base, token, repository, fetchImpl } = {}) => {
           const names = failed.map((entry) => entry.context).join(', ')
           throw new Error(`Checks falharam no PR #${number}: ${names}`)
         }
-        const required = relevant.find((entry) => entry.context === requiredContext)
+        const required = relevant.find((entry) => entry.context.includes(requiredContext))
         if (required && required.state === 'success' && pending.length === 0) return pr
         if (Date.now() - started > timeoutMs) {
           throw new Error(`Timeout esperando checks do PR #${number}.`)
