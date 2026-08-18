@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    // Harness MCP da Iara — seleção sobre os globais
+    // (~/.config/opencode/opencode.jsonc). O conjunto habilitado (forgejo,
+    // playwright, jina) é herdado dos globais por design; aqui se desligam os
+    // que NÃO devem carregar, para ninguém re-adicionar por engano.
+    //
+    // postgres: o global aponta pro banco do teqo; Iara é local-first sem
+    // backend — não faz sentido no desenvolvimento da Iara.
+    "postgres": { "enabled": false },
+    // stalwart: e-mail pessoal; fora do fluxo de dev da Iara.
+    "stalwart": { "enabled": false }
+    // penpot: config de repo do teqo (design); sem fluxo de design na Iara —
+    // nem chega a carregar, então não há entrada aqui.
+    // github: já desligado nos globais (fluxo migrou para o Forgejo).
+  }
+}

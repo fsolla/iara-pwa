@@ -28,6 +28,17 @@ usuário.
 nunca logado/commitado; aprovações nunca auto-aprovadas; copy pt-BR /
 identificadores em inglês; assets offline em `globPatterns` do PWA.
 
+## Harness do agente
+
+- **Skills:** `.agents/skills/` — fluxo custom + pack de engenharia (fonte de
+  verdade: `skills-lock.json`; detalhes no Workflow de trabalho).
+- **MCPs:** contrato em `opencode.jsonc` na raiz — seleção sobre os globais
+  (`~/.config/opencode/opencode.jsonc`). Em uso: `forgejo`, `playwright`,
+  `jina`. Desligados no repo: `postgres` (sem backend; global aponta pro banco
+  do teqo) e `stalwart` (e-mail pessoal). `penpot`/secrets do teqo nunca
+  entram. MCP novo ou re-habilitado passa por lá, com comentário registrando o
+  porquê.
+
 ## Workflow de trabalho (fluxo tipo teqo)
 
 **Pack de skills de engenharia:** em `.agents/skills/` (além das 5 de fluxo custom), com proveniência/hashes em `skills-lock.json` na raiz — fonte de verdade; upgrade deliberado via `npx skills update -y`.
