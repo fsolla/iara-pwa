@@ -44,14 +44,22 @@ const sameStrings = (have, want) =>
 
 /**
  * True when the existing rule (from `getBranchProtection`, already
- * normalized) matches the desired rule on every compared field — array
- * fields as sets.
+ * normalized) matches the desired rule on EVERY field of DESIRED_RULE —
+ * array fields as sets. Cobre o contrato inteiro: reviews/restrictions sem
+ * exigência e os booleanos (linear history, force pushes, deletions,
+ * creations) — drift em qualquer um deles é reparado.
  */
 export const ruleMatches = (existing) => {
   if (!existing) return false
   const wantStatus = DESIRED_RULE.required_status_checks
   if (existing.enforce_admins !== DESIRED_RULE.enforce_admins) return false
-  if (existing.required_pull_request_reviews !== null) return false
+  if (existing.required_pull_request_reviews !== DESIRED_RULE.required_pull_request_reviews)
+    return false
+  if (existing.restrictions !== DESIRED_RULE.restrictions) return false
+  if (existing.required_linear_history !== DESIRED_RULE.required_linear_history) return false
+  if (existing.allow_force_pushes !== DESIRED_RULE.allow_force_pushes) return false
+  if (existing.allow_deletions !== DESIRED_RULE.allow_deletions) return false
+  if (existing.block_creations !== DESIRED_RULE.block_creations) return false
   const haveStatus = existing.required_status_checks
   if (!haveStatus) return false
   if (haveStatus.strict !== wantStatus.strict) return false

@@ -10,6 +10,11 @@ const compliant = () => ({
   required_status_checks: { strict: false, contexts: [REQUIRED_CHECK_CONTEXT] },
   enforce_admins: true,
   required_pull_request_reviews: null,
+  restrictions: null,
+  required_linear_history: false,
+  allow_force_pushes: false,
+  allow_deletions: false,
+  block_creations: false,
 });
 
 describe("github-branch-protection", () => {
@@ -47,12 +52,22 @@ describe("github-branch-protection", () => {
     ).toBe(false);
   });
 
+  test("ruleMatches: drift em allow_deletions / restrictions é detectado", () => {
+    expect(ruleMatches({ ...compliant(), allow_deletions: true })).toBe(false);
+    expect(
+      ruleMatches({ ...compliant(), restrictions: { users: [], teams: [], apps: [] } }),
+    ).toBe(false);
+  });
+
   test("plan: sem regra → create; conforme → noop; drift → update", () => {
     expect(planBranchProtectionRule(null)).toEqual({ action: "create" });
     expect(planBranchProtectionRule(compliant())).toEqual({ action: "noop" });
     expect(
       planBranchProtectionRule({ ...compliant(), required_status_checks: { strict: false, contexts: [] } }),
     ).toEqual({ action: "update" });
+    expect(planBranchProtectionRule({ ...compliant(), allow_force_pushes: true })).toEqual({
+      action: "update",
+    });
   });
 
   test("DESIRED_RULE usa apenas `checks` moderno (sem `contexts` legacy)", () => {

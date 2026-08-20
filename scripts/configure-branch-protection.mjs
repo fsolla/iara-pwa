@@ -13,7 +13,11 @@
  */
 
 import { createApi } from './lib/github-api.mjs'
-import { DESIRED_RULE, planBranchProtectionRule } from './lib/github-branch-protection.mjs'
+import {
+  DESIRED_RULE,
+  planBranchProtectionRule,
+  ruleMatches,
+} from './lib/github-branch-protection.mjs'
 import { loadProjectEnv } from './lib/load-project-env.mjs'
 
 loadProjectEnv()
@@ -37,7 +41,7 @@ const dryRun = flags.dryRun === true
 const branch = 'main'
 
 const api = createApi({})
-const repo = process.env.GITHUB_REPOSITORY ?? 'fsolla/iara-pwa'
+const repo = process.env.GITHUB_REPOSITORY
 const existing = await api.getBranchProtection(branch)
 const { action } = planBranchProtectionRule(existing)
 
@@ -66,9 +70,9 @@ if (dryRun) {
 await api.updateBranchProtection(DESIRED_RULE, branch)
 
 const after = await api.getBranchProtection(branch)
-if (!after) {
+if (!after || !ruleMatches(after)) {
   console.error(
-    `[configure:branch-protection] FALHOU: PUT respondeu mas a regra "${branch}" não aparece no servidor.`,
+    `[configure:branch-protection] FALHOU: PUT respondeu mas a regra "${branch}" no servidor não bate com a desejada — ${JSON.stringify(after)}`,
   )
   process.exit(1)
 }

@@ -65,9 +65,14 @@ const pr = await api.createPullRequest({ head, base: 'main', title, body })
 console.log(`[pr] PR #${pr.number} criado (Ready): ${pr.htmlUrl}`)
 
 if (flags.automerge) {
-  console.log(`[pr] armando auto-merge do PR #${pr.number} (rebase)…`)
-  await api.enableAutoMerge(pr.nodeId)
-  console.log(
-    `[pr] auto-merge armado — o GitHub mergea quando o required check "checks" ficar verde`,
-  )
+  try {
+    console.log(`[pr] armando auto-merge do PR #${pr.number} (rebase)…`)
+    await api.enableAutoMerge(pr.nodeId)
+    console.log(
+      `[pr] auto-merge armado — o GitHub mergea quando o required check "checks" ficar verde`,
+    )
+  } catch (error) {
+    console.error(`[pr] falhou ao armar auto-merge: ${error instanceof Error ? error.message : error}`)
+    process.exit(1)
+  }
 }

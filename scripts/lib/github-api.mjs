@@ -8,11 +8,11 @@
  * Repository: `GITHUB_REPOSITORY` (set by `loadProjectEnv` from
  * `.forgejo/worktree.env` locally; by the runner in Actions), else the default.
  *
- * Retry (same policy as forgejo-api): transient failures retry with
- * exponential backoff — a fetch that rejects (network-level, DNS/TCP/reset)
- * retries on ANY method; a 5xx retries on GET only, so read polls survive
- * while write endpoints keep failing closed instead of risking duplicated
- * side effects. 4xx never retries. Defaults: 3 retries, base 300 ms ×2,
+ * Retry (exponential backoff): um fetch que REJEITA a nível de rede
+ * (DNS/TCP/reset — provavelmente nunca chegou ao servidor) retrya em
+ * QUALQUER método; um 5xx retrya só em GET — resposta 5xx significa que o
+ * servidor respondeu, então escritas falham fechado ali (sem duplicar efeito
+ * colateral). 4xx nunca retrya. Defaults: 3 retries, base 300 ms ×2,
  * ±20% jitter.
  *
  * Shapes are normalized to the contract the CLI scripts use: `pr.state` ∈
@@ -81,7 +81,7 @@ export const createApi = ({
       `[github-api] ${method} ${path} falhou (tentativa ${attempt}/${attemptCount}): ${reason} — retry em ${delay}ms`,
     )
 
-  const headers = (withJson = true) => {
+  const headers = () => {
     const authToken = token ?? process.env.GITHUB_TOKEN
     if (!authToken) {
       throw new Error('Sem token para a API do GitHub — defina GITHUB_TOKEN.')
@@ -89,7 +89,7 @@ export const createApi = ({
     return {
       Authorization: `Bearer ${authToken}`,
       'User-Agent': USER_AGENT,
-      ...(withJson ? { 'Content-Type': 'application/json' } : {}),
+      'Content-Type': 'application/json',
     }
   }
 
@@ -232,10 +232,15 @@ export const createApi = ({
     /**
      * GET /repos/{owner}/{repo}/branches/{branch}/protection — normalized for
      * drift comparison; `null` when the branch has no protection rule (404).
+     * Cobre todos os campos do DESIRED_RULE (ruleMatches os compara), então o
+     * drift repair é completo: reviews/restrictions sem exigência viram
+     * `null` (o GitHub pode ecoar um objeto com count 0), booleanos são
+     * desembrulhados de `{ enabled }`.
      */
     getBranchProtection: async (branch = 'main') => {
       const rule = await request(`/repos/${owner}/${name}/branches/${branch}/protection`)
       if (!rule) return null
+      const reviews = rule.required_pull_request_reviews
       return {
         required_status_checks: rule.required_status_checks
           ? {
@@ -244,7 +249,13 @@ export const createApi = ({
             }
           : null,
         enforce_admins: Boolean(rule.enforce_admins?.enabled ?? rule.enforce_admins),
-        required_pull_request_reviews: rule.required_pull_request_reviews ?? null,
+        required_pull_request_reviews:
+          !reviews || (reviews.required_approving_review_count ?? 0) === 0 ? null : reviews,
+        restrictions: rule.restrictions ?? null,
+        required_linear_history: Boolean(rule.required_linear_history),
+        allow_force_pushes: Boolean(rule.allow_force_pushes?.enabled ?? rule.allow_force_pushes),
+        allow_deletions: Boolean(rule.allow_deletions?.enabled ?? rule.allow_deletions),
+        block_creations: Boolean(rule.block_creations),
       }
     },
 
@@ -257,10 +268,6 @@ export const createApi = ({
         method: 'PUT',
         body: payload,
       }),
-
-    /** PATCH /repos/{owner}/{repo} — repo settings (e.g. allow_auto_merge). */
-    updateRepository: (payload) =>
-      request(`/repos/${owner}/${name}`, { method: 'PATCH', body: payload }),
   }
 
   return api

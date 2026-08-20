@@ -11,8 +11,9 @@
 # mergeia quando todo required check (o check-run `checks` do ci.yml) está
 # verde e o PR é mergeável. Nada a pollar, nada a confiar localmente.
 #
-# Permissions: contents + pull-requests write — o suficiente para a mutation
-# GraphQL com o GITHUB_TOKEN built-in.
+# Permissions mínimas: a mutation de auto-merge exige só `pull-requests:
+# write` — `contents: read` (default) basta para o checkout; nada de token de
+# push para o código do branch de uma PR (mesmo em repo com colaboradores).
 
 name: PR Ready + auto-merge
 
@@ -22,7 +23,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
