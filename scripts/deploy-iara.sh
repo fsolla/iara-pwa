@@ -32,10 +32,13 @@ BUN_BIN="${BUN:-$(command -v bun || echo "$HOME/.bun/bin/bun")}"
 say() { printf '[deploy] %s\n' "$*"; }
 
 fatal() {
-  trap - ERR
   say "FAILED: $*" >&2
   exit 1
 }
+
+# --- bun no homeserver (passo manual do cutover) -------------------------
+
+[ -x "$BUN_BIN" ] || fatal "bun não encontrado em $BUN_BIN — instale no homeserver (ou defina BUN)"
 
 # --- guards ------------------------------------------------------------
 
@@ -46,7 +49,9 @@ if [ "$main_head" != "$SHA" ]; then
 fi
 
 exec 9>"$DEPLOY_LOCK"
-flock -w 3600 9 || fatal "another deploy holds $DEPLOY_LOCK"
+# ~20min de espera pelo lock: o job tem timeout de 30min — esperar mais que
+# isso seria descartado pelo GitHub de qualquer forma.
+flock -w 1200 9 || fatal "another deploy holds $DEPLOY_LOCK"
 
 main_head="$(git ls-remote "$IARA_REPO_URL" refs/heads/main | awk '{print $1}')"
 if [ "$main_head" != "$SHA" ]; then
@@ -80,6 +85,10 @@ else
   git -C "$WORKSPACE_DIR" fetch -q origin
 fi
 
+# Workspace limpo e no SHA exato: um deploy anterior falhado (ou residuo de
+# build) não contamina o build — `bun install` recria o que precisar.
+git -C "$WORKSPACE_DIR" reset -q --hard "$SHA"
+git -C "$WORKSPACE_DIR" clean -q -fdx
 git -C "$WORKSPACE_DIR" checkout -q --detach "$SHA"
 say "workspace at $SHA"
 

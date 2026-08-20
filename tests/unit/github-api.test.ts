@@ -52,6 +52,27 @@ describe("github-api", () => {
     });
   });
 
+  test("getPullRequest: estado fechado (caixa baixa, como o GitHub envia) e merged_at", async () => {
+    const api = apiWith(() =>
+      ok({
+        number: 8,
+        title: "t",
+        body: "",
+        state: "closed",
+        draft: false,
+        merged_at: "2026-08-20T00:00:00Z",
+        node_id: "PR_2",
+        head: { ref: "b", sha: "s" },
+        base: { ref: "main" },
+      }),
+    );
+
+    const pr = await api.getPullRequest(8);
+
+    expect(pr?.state).toBe("CLOSED");
+    expect(pr?.merged).toBe(true);
+  });
+
   test("getPullRequest 404 → null", async () => {
     const api = apiWith(() => ok({ message: "Not Found" }, 404));
     expect(await api.getPullRequest(999)).toBeNull();
@@ -71,14 +92,23 @@ describe("github-api", () => {
     expect(pr).toEqual({ number: 7, title: "t", htmlUrl: "https://github.com/x/7", nodeId: "PR_1" });
   });
 
-  test("getBranchProtection normaliza para drift; 404 → null", async () => {
+  test("getBranchProtection normaliza para drift completo (reviews count 0 → null, booleanos)", async () => {
     let seen = "";
     const api = apiWith((url) => {
       seen = url;
       return ok({
         required_status_checks: { strict: false, checks: [{ context: "checks" }] },
         enforce_admins: { enabled: true },
-        required_pull_request_reviews: null,
+        required_pull_request_reviews: {
+          required_approving_review_count: 0,
+          dismiss_stale_reviews: false,
+          require_code_owner_reviews: false,
+        },
+        restrictions: null,
+        required_linear_history: false,
+        allow_force_pushes: { enabled: false },
+        allow_deletions: { enabled: true },
+        block_creations: false,
       });
     });
 
@@ -89,6 +119,11 @@ describe("github-api", () => {
       required_status_checks: { strict: false, contexts: ["checks"] },
       enforce_admins: true,
       required_pull_request_reviews: null,
+      restrictions: null,
+      required_linear_history: false,
+      allow_force_pushes: false,
+      allow_deletions: true,
+      block_creations: false,
     });
 
     const api404 = apiWith(() => ok({}, 404));
@@ -112,5 +147,65 @@ describe("github-api", () => {
   test("enableAutoMerge propaga erro do GraphQL (exit 1 no CLI)", async () => {
     const api = apiWith(() => ok({ errors: [{ message: "auto-merge disabled" }] }));
     await expect(api.enableAutoMerge("PR_1")).rejects.toThrow("auto-merge disabled");
+  });
+});
+
+describe("github-api retry", () => {
+  const retryApi = (handler: (url: string, init?: Record<string, unknown>) => Response | never) =>
+    createApi({
+      token: "t",
+      repository: "fsolla/iara-pwa",
+      retries: 2,
+      backoffMs: 0,
+      jitter: false,
+      sleepImpl: async () => {},
+      fetchImpl: async (url: string | URL, init?: Record<string, unknown>) =>
+        handler(String(url), init),
+    });
+
+  test("GET 5xx (503) retrya até sucesso", async () => {
+    let calls = 0;
+    const api = retryApi(() => {
+      calls += 1;
+      if (calls === 1) return ok({ message: "Service Unavailable" }, 503);
+      return ok({
+        number: 7,
+        title: "t",
+        body: "",
+        state: "open",
+        draft: false,
+        merged_at: null,
+        node_id: "PR_1",
+        head: { ref: "b", sha: "s" },
+        base: { ref: "main" },
+      });
+    });
+
+    const pr = await api.getPullRequest(7);
+
+    expect(calls).toBe(2);
+    expect(pr?.number).toBe(7);
+  });
+
+  test("escrita com 5xx não retrya (fail-closed — servidor respondeu)", async () => {
+    let calls = 0;
+    const api = retryApi(() => {
+      calls += 1;
+      return ok({ message: "boom" }, 503);
+    });
+
+    await expect(api.createPullRequest({ head: "x", title: "t", body: "b" })).rejects.toThrow();
+    expect(calls).toBe(1);
+  });
+
+  test("rejeição de rede retrya em qualquer método (não chegou ao servidor)", async () => {
+    let calls = 0;
+    const api = retryApi(() => {
+      calls += 1;
+      throw new Error("ECONNRESET");
+    });
+
+    await expect(api.getPullRequest(1)).rejects.toThrow("ECONNRESET");
+    expect(calls).toBe(3);
   });
 });

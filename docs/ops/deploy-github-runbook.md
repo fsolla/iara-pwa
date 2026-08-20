@@ -47,6 +47,10 @@ workstation não roda mais a suíte de CI.
      + `bun run build` lá — precisa existir no PATH do runner; `BUN` env
      sobrepõe o default).
    - Instalar o `actions-runner` com labels `self-hosted, homeserver`.
+   - **Não ligar** "Send workflows to a self-hosted runner" para fork PRs
+     (default OFF no GitHub): o repo é público e o `deploy` executa código na
+     máquina de produção — se esse setting ligar algum dia, um fork PR pode
+     virar RCE no homeserver.
    - Não bloqueia PRs: o deploy é manual e só existe depois do runner.
 
 6. **(f) Push → PR → CI → merge → flips.** O PR do próprio OPS1 valida o fluxo
