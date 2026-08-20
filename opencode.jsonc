@@ -16,5 +16,30 @@
     // github: fluxo de PR/CI voltou para o GitHub (OPS1), mas é dirigido por
     // scripts (`bun run pr`, `github-pr-automerge.mjs`, configure) — o MCP
     // github continua desligado; o `forgejo` MCP é o tracker de Issues.
+  },
+  "provider": {
+    "cheapest-inference": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Cheapest Inference",
+      "options": {
+        "baseURL": "https://api.cheapestinference.com/v1"
+      },
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "DeepSeek V4 Flash",
+          "limit": {
+            "context": 1000000,
+            "output": 384000
+          }
+        },
+        "mimo-v2.5": {
+          "name": "MiMo v2.5",
+          "limit": {
+            "context": 1000000,
+            "output": 128000
+          }
+        }
+      }
+    }
   }
 }
