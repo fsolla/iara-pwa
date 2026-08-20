@@ -1,0 +1,50 @@
+# Safety net (OPS1 — GitHub): todo PR same-repo para main nasce com o
+# auto-merge ARMADO (rebase — estilo canônico do repo). Cobre PRs humanos e de
+# agente (as branches de entrega da Iara são `<Code>-<slug>` para os dois —
+# não há distinção por prefixo), e PRs que esqueceram o `--automerge` local.
+# Draft é o veto do ator: nunca é marcado Ready (a Iara não cria draft por
+# nenhum fluxo) — o job skips (exit 0).
+#
+# O auto-merge NATIVO do GitHub substitui o poll CLI da era Forgejo
+# (forgejo-pr-automerge.mjs — dormente até a Fase 2):
+# `enablePullRequestAutoMerge` (GraphQL, REBASE) é server-side — o GitHub só
+# mergeia quando todo required check (o check-run `checks` do ci.yml) está
+# verde e o PR é mergeável. Nada a pollar, nada a confiar localmente.
+#
+# Permissions: contents + pull-requests write — o suficiente para a mutation
+# GraphQL com o GITHUB_TOKEN built-in.
+
+name: PR Ready + auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ready-automerge:
+    # Same-repo only. Tem que ficar no `if:` (pré-checkout): para um fork PR,
+    # o actions/checkout puxa o head do fork, então uma guarda interna ao CLI
+    # já estaria rodando o script do próprio fork — RCE com o token do Actions.
+    if: >-
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      # Script é plain Node (stdlib) — sem bun. Disable package-manager-cache.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Arm auto-merge (rebase)
+        env:
+          # `github.token` explícito: o env GITHUB_TOKEN não é garantido em
+          # toda via de evento; a forma robusta é o contexto documentado.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/github-pr-automerge.mjs --pr "${{ github.event.pull_request.number }}"

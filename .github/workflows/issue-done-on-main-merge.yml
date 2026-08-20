@@ -1,0 +1,43 @@
+# Main merge flips claimed issues to done + in-prod.
+# OPS1: o PR vive no GitHub; as ISSUES ficam no tracker do Forgejo. O job passa
+# o corpo do PR via PR_BODY (evento do GitHub) e
+# scripts/forgejo-issue-transition.mjs flipa labels/comentário na API do
+# Forgejo com o FORGEJO_API_TOKEN (PAT) — o GITHUB_TOKEN built-in não toca
+# Issues do Forgejo. FORGEJO_REPOSITORY explícito: o repo do tracker
+# (amana/iara-pwa) difere do GitHub (fsolla/iara-pwa) — sem isso, a lib
+# resolveria GITHUB_REPOSITORY e o flip 404a no repo errado. Fail-loud: um
+# flip que falhe deixa o job vermelho (I10 absorvida).
+# Guarda de fork: num PR de fork mergeado, o checkout puxaria o script do
+# próprio fork, que rodaria com o PAT do repo (RCE) — same-repo no `if:`.
+
+name: Main merge flips claimed issues to done + in-prod
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  issue-done:
+    if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FORGEJO_API_TOKEN: ${{ secrets.FORGEJO_API_TOKEN }}
+      # Explícito: em Actions, GITHUB_SERVER_URL aponta github.com e
+      # forgejo-api.mjs resolveria a base errada (410).
+      FORGEJO_API_URL: https://git.solla.dev/api/v1
+      FORGEJO_REPOSITORY: amana/iara-pwa
+      PR_BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - uses: actions/checkout@v5
+      # Script é plain Node (stdlib) — sem bun. Disable package-manager-cache:
+      # setup-node@v5 olha packageManager no package.json antes do action-setup.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Flip Closes/Fixes #N issues to done and in-prod
+        run: node scripts/forgejo-issue-transition.mjs --pr "${{ github.event.pull_request.number }}"

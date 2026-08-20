@@ -13,6 +13,8 @@
     "stalwart": { "enabled": false }
     // penpot: config de repo do teqo (design); sem fluxo de design na Iara —
     // nem chega a carregar, então não há entrada aqui.
-    // github: já desligado nos globais (fluxo migrou para o Forgejo).
+    // github: fluxo de PR/CI voltou para o GitHub (OPS1), mas é dirigido por
+    // scripts (`bun run pr`, `github-pr-automerge.mjs`, configure) — o MCP
+    // github continua desligado; o `forgejo` MCP é o tracker de Issues.
   }
 }

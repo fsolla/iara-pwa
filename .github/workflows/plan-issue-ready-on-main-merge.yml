@@ -1,0 +1,43 @@
+# Safety net: PRs mergeados em main com `Related #N` promovem Issues que ainda
+# aguardam o plano de intenção (`blocked` + docs/plans/ link) para `ready`.
+# Idempotente com `bun run agent:ready` (caminho feliz do agente). OPS1: o PR
+# vive no GitHub, as Issues no tracker do Forgejo — o corpo do PR vem via
+# PR_BODY (evento do GitHub) e scripts/agent-promote-related-on-merge.mjs
+# flipa labels na API do Forgejo (FORGEJO_API_TOKEN; FORGEJO_REPOSITORY
+# explícito — repo do tracker difere do GitHub). Guarda de fork (RCE) no `if:`.
+
+name: Promote plan-issue Related on main merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  plan-issue-ready:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        contains(github.event.pull_request.body, 'Related #') ||
+        contains(github.event.pull_request.body, 'related #') ||
+        contains(github.event.pull_request.body, 'RELATED #')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FORGEJO_API_TOKEN: ${{ secrets.FORGEJO_API_TOKEN }}
+      FORGEJO_API_URL: https://git.solla.dev/api/v1
+      FORGEJO_REPOSITORY: amana/iara-pwa
+      PR_BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Promote Related #N awaiting plan → ready
+        run: node scripts/agent-promote-related-on-merge.mjs --pr "${{ github.event.pull_request.number }}"

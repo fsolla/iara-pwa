@@ -1,0 +1,68 @@
+# Deploy de produção manual (OPS1 — GitHub Actions). `workflow_dispatch`
+# only: NÃO existe verificador automático de `main` (o ci.yml não roda em
+# push) — publicar é um ato deliberado do operador, e este workflow roda a
+# suíte FULL (sem skips, e2e incluída) antes do job de deploy tocar o
+# homeserver.
+#
+# DOIS jobs, mesmo workflow:
+#   verify  — ubuntu-latest (hosted): cascata full.
+#   deploy  — needs: [verify], runs-on [self-hosted, homeserver]: o runner
+#             self-hosted do GitHub NO homeserver executa
+#             scripts/deploy-iara.sh LOCALMENTE (sem SSH; runner outbound-only,
+#             funciona atrás do túnel Cloudflare). O job hosted nunca alcança
+#             o homeserver; o job self-hosted nunca conta minutes hosted.
+#
+# O deploy é idempotente (guard "already deployed" via marker do SHA no
+# deploy-iara.sh) e serializado por flock no homeserver. O `deploy` busca o
+# repo de github.com (público); o HEAD guard só deploya quando o SHA
+# disparado é o HEAD de main (dispatch defasado → skip).
+
+name: Deploy (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Build (tsc + vite)
+        run: bun run build
+
+      - name: Testes unitários (bun test)
+        run: bun run test:unit
+
+      - name: Instalar navegador do Playwright
+        run: bunx playwright install --with-deps chromium
+
+      - name: E2E (Playwright)
+        run: bun run test:e2e
+
+  deploy:
+    name: deploy no homeserver
+    # Roda no runner self-hosted do GitHub NO homeserver (labels self-hosted +
+    # homeserver): o script executa localmente — sem SSH hop, sem workstation.
+    # Deliberadamente ligado SÓ aqui (dispatch manual), nunca no ci.yml: um
+    # job self-hosted é execução de código na máquina de produção.
+    needs: [verify]
+    if: needs.verify.result == 'success'
+    runs-on: [self-hosted, homeserver]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy do dist no homeserver
+        run: bash scripts/deploy-iara.sh "$GITHUB_SHA"

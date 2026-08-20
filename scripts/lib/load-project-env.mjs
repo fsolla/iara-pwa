@@ -4,6 +4,10 @@
  * permite que os scripts rodem por qualquer caminho (comando `/worktree` do
  * opencode, `bun run issue`, roteador de terminal) sem depender de exportação
  * global. Arquivo commitado, sem segredos.
+ *
+ * OPS1: além do tracker (FORGEJO_REPOSITORY), também resolve o repo GitHub
+ * (GITHUB_REPOSITORY) — o default dos scripts de PR/CI (`pr.mjs`,
+ * `configure-branch-protection.mjs`).
  */
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -52,11 +56,14 @@ export const loadProjectEnv = (from = process.cwd()) => {
 
   const repo =
     process.env.FORGEJO_REPOSITORY ?? parsed.FORGEJO_REPOSITORY ?? process.env.GITHUB_REPOSITORY ?? 'amana/iara-pwa'
+  const githubRepo =
+    process.env.GITHUB_REPOSITORY ?? parsed.GITHUB_REPOSITORY ?? 'fsolla/iara-pwa'
   const worktreesRoot = expandHome(
     process.env.WORKTREES_ROOT ?? parsed.WORKTREES_ROOT ?? `~/.worktrees/${repo.split('/')[1] ?? 'work'}`,
   )
 
   if (!process.env.FORGEJO_REPOSITORY) process.env.FORGEJO_REPOSITORY = repo
+  if (!process.env.GITHUB_REPOSITORY) process.env.GITHUB_REPOSITORY = githubRepo
   if (!process.env.WORKTREES_ROOT) process.env.WORKTREES_ROOT = worktreesRoot
 
   return { repo, worktreesRoot, envFile: file }
