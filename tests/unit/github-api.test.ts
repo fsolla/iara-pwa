@@ -1,0 +1,116 @@
+import { describe, expect, test } from "bun:test";
+import { createApi } from "../../scripts/lib/github-api.mjs";
+
+const ok = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+
+const apiWith = (handler: (url: string, init?: Record<string, unknown>) => Response) =>
+  createApi({
+    token: "t",
+    repository: "fsolla/iara-pwa",
+    retries: 0,
+    fetchImpl: async (url: string | URL, init?: Record<string, unknown>) =>
+      handler(String(url), init),
+  });
+
+describe("github-api", () => {
+  test("getPullRequest normaliza o shape do PR", async () => {
+    let seen = "";
+    const api = apiWith((url) => {
+      seen = url;
+      return ok({
+        number: 7,
+        title: "t",
+        body: "Closes #1",
+        state: "open",
+        draft: false,
+        mergeable: true,
+        merged_at: null,
+        node_id: "PR_kwDO",
+        head: { ref: "OPS1-x", sha: "abc" },
+        base: { ref: "main" },
+      });
+    });
+
+    const pr = await api.getPullRequest(7);
+
+    expect(seen).toBe("https://api.github.com/repos/fsolla/iara-pwa/pulls/7");
+    expect(pr).toEqual({
+      number: 7,
+      title: "t",
+      body: "Closes #1",
+      state: "OPEN",
+      merged: false,
+      draft: false,
+      mergeable: true,
+      nodeId: "PR_kwDO",
+      head: { ref: "OPS1-x", sha: "abc" },
+      base: { ref: "main" },
+    });
+  });
+
+  test("getPullRequest 404 → null", async () => {
+    const api = apiWith(() => ok({ message: "Not Found" }, 404));
+    expect(await api.getPullRequest(999)).toBeNull();
+  });
+
+  test("createPullRequest POST /pulls e devolve nodeId (para auto-merge)", async () => {
+    let body: Record<string, unknown> = {};
+    const api = apiWith((_url, init) => {
+      if (!init || init.method !== "POST") throw new Error("esperava POST");
+      body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      return ok({ number: 7, title: "t", html_url: "https://github.com/x/7", node_id: "PR_1" });
+    });
+
+    const pr = await api.createPullRequest({ head: "OPS1-x", title: "t", body: "Closes #1" });
+
+    expect(body).toEqual({ head: "OPS1-x", base: "main", title: "t", body: "Closes #1" });
+    expect(pr).toEqual({ number: 7, title: "t", htmlUrl: "https://github.com/x/7", nodeId: "PR_1" });
+  });
+
+  test("getBranchProtection normaliza para drift; 404 → null", async () => {
+    let seen = "";
+    const api = apiWith((url) => {
+      seen = url;
+      return ok({
+        required_status_checks: { strict: false, checks: [{ context: "checks" }] },
+        enforce_admins: { enabled: true },
+        required_pull_request_reviews: null,
+      });
+    });
+
+    const rule = await api.getBranchProtection("main");
+
+    expect(seen).toBe("https://api.github.com/repos/fsolla/iara-pwa/branches/main/protection");
+    expect(rule).toEqual({
+      required_status_checks: { strict: false, contexts: ["checks"] },
+      enforce_admins: true,
+      required_pull_request_reviews: null,
+    });
+
+    const api404 = apiWith(() => ok({}, 404));
+    expect(await api404.getBranchProtection("main")).toBeNull();
+  });
+
+  test("enableAutoMerge envia mutation GraphQL com mergeMethod REBASE", async () => {
+    let payload: { query?: string; variables?: Record<string, unknown> } = {};
+    const api = apiWith((url, init) => {
+      if (!url.includes("graphql")) throw new Error(`esperava GraphQL, vi ${url}`);
+      payload = JSON.parse(String(init?.body)) as { query?: string; variables?: Record<string, unknown> };
+      return ok({ data: { enablePullRequestAutoMerge: { pullRequest: { number: 7 } } } });
+    });
+
+    await api.enableAutoMerge("PR_1");
+
+    expect(payload?.query).toContain("enablePullRequestAutoMerge");
+    expect(payload?.variables).toEqual({ id: "PR_1", mergeMethod: "REBASE" });
+  });
+
+  test("enableAutoMerge propaga erro do GraphQL (exit 1 no CLI)", async () => {
+    const api = apiWith(() => ok({ errors: [{ message: "auto-merge disabled" }] }));
+    await expect(api.enableAutoMerge("PR_1")).rejects.toThrow("auto-merge disabled");
+  });
+});

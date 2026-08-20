@@ -64,7 +64,7 @@ Ciclo completo (detalhes nas skills `plan-issue` / `work-issue`):
 3. **`/work-issue`** → plano de implementação (`docs/plans/<slug>-impl.md`), pausa para aprovação humana, execução.
 4. **`/simplify`** (skill `code-simplification`) → 3 reviews locais paralelos no diff.
 5. **`capture-review-debts`** → triagem + débitos (`bun run agent:register` / `agent:file-miss`).
-6. **PR Ready** `Closes #N` com auto-merge (`bun run pr -- --automerge`) → CI (lint+build+e2e) → merge → `done`/`in-prod` → deploy.
+6. **PR Ready** `Closes #N` com auto-merge (`bun run pr -- --automerge`) → CI (lint+build+e2e) → merge → `done`/`in-prod` → deploy (manual, `workflow_dispatch`).
 
 ### Comandos de agente (bun)
 
@@ -77,23 +77,53 @@ Ciclo completo (detalhes nas skills `plan-issue` / `work-issue`):
 | `bun run agent:ready` | promove `blocked` → `ready` (plano em main) |
 | `bun run agent:file-miss` | registra défice do fluxo de agentes |
 | `bun run agent:status` | grafo/overview read-only |
-| `bun run pr -- --head <b> --body "Closes #N" --automerge` | cria PR e mergea quando os checks passarem |
+| `bun run pr -- --head <b> --body "Closes #N" --automerge` | cria PR no GitHub (Ready) e arma o auto-merge nativo — o servidor mergea quando `checks` ficar green (requer `GITHUB_TOKEN` env) |
+| `bun run configure:branch-protection` | (re)aplica a proteção de `main` no GitHub (required check `checks` + enforce admins; idempotente) |
 
 **O comando de terminal `worktree` é o roteador global** (`~/.config/shell/worktree.sh`): descobre o projeto pelo diretório atual (`git rev-parse`) e roda o script do projeto; config por projeto em `.forgejo/worktree.env` (commitado, sem secrets).
 
-## CI (Forgejo Actions — `.forgejo/workflows/`)
+## CI (GitHub Actions — `.github/workflows/`)
 
-- `ci.yml` — em push (main) e PR: job `checks` (lint + build + **e2e** Playwright) e job `deploy` (só main, `needs: checks`, rsync para o homeserver).
-- `issue-done-on-main-merge.yml` — PRs mergeadas com `Closes #N` flipam a Issue para `done`/`in-prod` (`scripts/forgejo-issue-transition.mjs`).
-- `plan-issue-ready-on-main-merge.yml` — PRs com `Related #N` promovem `blocked` → `ready` (`scripts/agent-promote-related-on-merge.mjs`).
-- `agent-pr-ready-automerge.yml` — marca Ready e mergea quando `checks` ficar green (safety net do auto-merge).
+O **código/PR/CI vive no GitHub** (`github.com/fsolla/iara-pwa`, público; o
+`origin` local aponta para ele após o cutover); o **tracker de Issues
+permanece no Forgejo** (`git.solla.dev/amana/iara-pwa` — labels, claims,
+`bun run issue`/`agent:*` e os flips pós-merge continuam falando com a API do
+Forgejo; GitHub é só o host do Actions).
 
-**Sem branch protection server-side em `main`** (espelha o teqo): o gate de merge é o
-próprio script de auto-merge (`pr.mjs --automerge` / `forgejo-pr-automerge.mjs`),
-que espera os status checks ficarem green antes de mergear; o deploy é gated pelo
-`needs: checks` do `ci.yml`.
+- `ci.yml` — **PR gate**: job único `checks` em `ubuntu-latest` (lint + build +
+  unit + **e2e** Playwright); seu check-run `CI / checks` é o required check de
+  `main` — literal de match na proteção: `checks` (o GitHub casa pelo nome do
+  check-run/job; a UI exibe `CI / checks`). **Sem verificador de `main`** —
+  publicar é ato manual (deploy.yml).
+- `deploy.yml` — **manual (`workflow_dispatch`)**: `verify` (hosted, suíte
+  **full**) → `deploy` (`needs: [verify]`, runner **self-hosted no
+  homeserver**) executando `scripts/deploy-iara.sh` localmente (sem SSH;
+  idempotente via marker do SHA).
+- `issue-done-on-main-merge.yml` — PRs mergeadas com `Closes #N` flipam a Issue
+  para `done`/`in-prod` no Forgejo via API (`scripts/forgejo-issue-transition.mjs`,
+  fail-loud).
+- `plan-issue-ready-on-main-merge.yml` — PRs com `Related #N` promovem `blocked`
+  → `ready` (`scripts/agent-promote-related-on-merge.mjs`).
+- `agent-pr-ready-automerge.yml` — safety net: arma o **auto-merge nativo** do
+  GitHub (GraphQL `enablePullRequestAutoMerge`, rebase) para todo PR same-repo
+  não-draft (`scripts/github-pr-automerge.mjs`). O servidor só mergeia com o
+  required check `checks` verde — nada de poll.
+
+**Branch protection REAL em `main`** (era Forgejo não tinha): required check
+`checks` + `enforce_admins: true` (nem admin mergeia com CI vermelho).
+Configurado via `bun run configure:branch-protection` (idempotente). O merge
+automático é o nativo do GitHub — a semântica de "cria e mergea quando os
+checks passarem" (`bun run pr -- --automerge`) é preservada pela garantia do
+servidor (o `--automerge` local arma o auto-merge; sem poll local).
+
+**Deploy:** manual via `workflow_dispatch` no GitHub (job `Deploy (manual)`), só
+após `verify` full green. Nada de deploy automático em push.
 
 **e2e só no CI** — nunca rode `bun run test:e2e` local como parte do fluxo normal.
+
+**Arquivos do fluxo Forgejo** (`.forgejo/workflows/`, `forgejo-pr-automerge.mjs`)
+permanecem **dormentes** como via de rollback até a remoção na entrega
+sucessora (Fase 2); o runner do Forgejo fica desligado após o cutover.
 
 ## Regras de entrega
 

@@ -20,8 +20,9 @@
     "agent:file-miss": "node scripts/agent-file-miss.mjs",
     "agent:status": "node scripts/agent-status.mjs",
     "agent:promote-related": "node scripts/agent-promote-related-on-merge.mjs",
-    "pr:automerge": "node scripts/forgejo-pr-automerge.mjs",
-    "issue:transition": "node scripts/forgejo-issue-transition.mjs"
+    "pr:automerge": "node scripts/github-pr-automerge.mjs",
+    "issue:transition": "node scripts/forgejo-issue-transition.mjs",
+    "configure:branch-protection": "node scripts/configure-branch-protection.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.14",
