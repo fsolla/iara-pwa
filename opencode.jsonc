@@ -2,15 +2,26 @@
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
     // Harness MCP da Iara — seleção sobre os globais
-    // (~/.config/opencode/opencode.jsonc). O conjunto habilitado (forgejo,
-    // playwright, jina) é herdado dos globais por design; aqui se desligam os
-    // que NÃO devem carregar, para ninguém re-adicionar por engano.
+    // (~/.config/opencode/opencode.jsonc). O conjunto habilitado (jina,
+    // playwright) é herdado dos globais por design; aqui se declaram os MCPs
+    // locais do próprio repo.
     //
-    // postgres: o global aponta pro banco do teqo; Iara é local-first sem
-    // backend — não faz sentido no desenvolvimento da Iara.
-    "postgres": { "enabled": false },
-    // stalwart: e-mail pessoal; fora do fluxo de dev da Iara.
-    "stalwart": { "enabled": false }
+    // forgejo: re-homed do global em OPS92 (era herdado, agora local) — tracker
+    // de Issues no Forgejo.
+    "forgejo": {
+      "type": "local",
+      "command": ["/home/fsolla/.local/bin/forgejo-mcp", "--transport", "stdio", "--url", "https://git.solla.dev"],
+      "environment": {
+        "FORGEJO_ACCESS_TOKEN": "{env:FORGEJO_API_TOKEN}",
+        "FORGEJO_USER_AGENT": "forgejo-mcp/2.33.0 (opencode, fsolla)"
+      },
+      "enabled": true
+    }
+    // postgres: o global apontava pro banco do teqo; Iara é local-first sem
+    // backend — não faz sentido (removido em OPS92, global já não expõe).
+    // stalwart: e-mail pessoal; fora do fluxo de dev da Iara (Issue #5 dela).
+    //   — pin removido em OPS92 (global já não expõe stalwart), mas decisão
+    //   persiste: não re-adicionar stalwart neste repo.
     // penpot: config de repo do teqo (design); sem fluxo de design na Iara —
     // nem chega a carregar, então não há entrada aqui.
     // github: fluxo de PR/CI voltou para o GitHub (OPS1), mas é dirigido por
